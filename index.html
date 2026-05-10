@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>料理ログ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@400;600&family=Noto+Sans+JP:wght@300;400;500;700&display=swap');
+
+  :root {
+    --cream: #FAF7F2;
+    --warm-white: #FFFDF9;
+    --charcoal: #1C1C1A;
+    --ink: #2D2D2B;
+    --muted: #7A7872;
+    --border: #E8E4DC;
+    --border-strong: #C8C4BC;
+    --accent: #C4622D;
+    --accent-light: #F5E8DF;
+    --accent-hover: #A85025;
+    --tag-and: #E8F0E4;
+    --tag-yo: #E4EAF5;
+    --tag-chu: #F5E8E4;
+    --tag-it: #EAE4F5;
+    --tag-oya: #F5F0E4;
+    --tag-hi: #E4F5F0;
+    --tag-other: #F0F0F0;
+    --success: #4A7C59;
+    --error: #C4622D;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --shadow-card: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    min-height: 100vh;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ===== STATUS BAR ===== */
+  #status-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 44px;
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+  }
+
+  .app-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--charcoal);
+    letter-spacing: 0.02em;
+  }
+
+  #sync-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .sync-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .sync-dot.connecting { background: #F0A500; animation: pulse 1s infinite; }
+  .sync-dot.synced { background: var(--success); }
+  .sync-dot.error { background: var(--error); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ===== MAIN LAYOUT ===== */
+  main {
+    padding-top: 44px;
+    padding-bottom: 80px;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  /* ===== CATEGORY FILTER ===== */
+  #filter-area {
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 16px;
+    overflow-x: auto;
+    display: flex;
+    gap: 8px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  #filter-area::-webkit-scrollbar { display: none; }
+
+  .cat-tag {
+    flex-shrink: 0;
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--muted);
+    font-size: 12px;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .cat-tag .count {
+    background: rgba(0,0,0,0.08);
+    border-radius: 10px;
+    padding: 0 5px;
+    font-size: 10px;
+  }
+
+  .cat-tag.active {
+    background: var(--charcoal);
+    color: #fff;
+    border-color: var(--charcoal);
+  }
+  .cat-tag.active .count {
+    background: rgba(255,255,255,0.2);
+  }
+
+  /* ===== CARD GRID ===== */
+  #card-grid {
+    padding: 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .dish-card {
+    background: var(--warm-white);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 1px solid var(--border);
+  }
+
+  .dish-card:active {
+    transform: scale(0.97);
+    box-shadow: var(--shadow);
+  }
+
+  .card-thumb {
+    width: 100%;
+    aspect-ratio: 4/3;
+    object-fit: cover;
+    background: var(--cream);
+    display: block;
+  }
+
+  .card-thumb-empty {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border-strong);
+    font-size: 28px;
+  }
+
+  .card-body {
+    padding: 10px 10px 12px;
+  }
+
+  .card-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--charcoal);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 6px;
+  }
+
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .cat-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  .recipe-count {
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ===== EMPTY STATE ===== */
+  #empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    display: none;
+  }
+  #empty-state .emoji { font-size: 48px; margin-bottom: 12px; }
+  #empty-state p { font-size: 14px; }
+
+  /* ===== ADD BUTTON ===== */
+  #add-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 50%;
+    transform: translateX(50%);
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 28px;
+    padding: 14px 28px;
+    font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(196,98,45,0.4);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: background 0.15s, transform 0.1s;
+    z-index: 50;
+    max-width: calc(100vw - 32px);
+  }
+  #add-btn:active { background: var(--accent-hover); transform: translateX(50%) scale(0.97); }
+
+  /* ===== MODAL BASE ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-overlay.open {
+    display: flex;
+  }
+
+  .modal-sheet {
+    background: var(--warm-white);
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 600px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+    animation: slideUp 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .sheet-header {
+    position: sticky;
+    top: 0;
+    background: var(--warm-white);
+    padding: 16px 16px 12px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 10;
+  }
+
+  .sheet-title {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--charcoal);
+  }
+
+  .close-btn {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: var(--border);
+    color: var(--muted);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== REGISTER FORM ===== */
+  #register-sheet { padding: 0; }
+
+  .form-body {
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 6px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .form-group input[type="text"],
+  .form-group select {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    background: var(--cream);
+    color: var(--charcoal);
+    font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-group input[type="text"]:focus,
+  .form-group select:focus {
+    border-color: var(--accent);
+  }
+
+  /* Image upload areas */
+  .img-upload-area {
+    border: 2px dashed var(--border-strong);
+    border-radius: 12px;
+    padding: 24px 16px;
+    text-align: center;
+    cursor: pointer;
+    background: var(--cream);
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+  }
+
+  .img-upload-area:hover {
+    border-color: var(--accent);
+    background: var(--accent-light);
+  }
+
+  .img-upload-area input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  .img-upload-icon { font-size: 28px; margin-bottom: 6px; }
+  .img-upload-text { font-size: 13px; color: var(--muted); }
+  .img-upload-hint { font-size: 11px; color: var(--border-strong); margin-top: 4px; }
+
+  /* Preview areas */
+  #finish-preview {
+    margin-top: 10px;
+    border-radius: 12px;
+    overflow: hidden;
+    display: none;
+  }
+  #finish-preview img {
+    width: 100%; display: block; border-radius: 12px;
+    max-height: 200px; object-fit: cover;
+  }
+
+  #recipe-preview-list {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+  }
+  #recipe-preview-list::-webkit-scrollbar { display: none; }
+
+  .recipe-thumb-wrap {
+    flex-shrink: 0;
+    position: relative;
+  }
+  .recipe-thumb-wrap img {
+    width: 72px; height: 72px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    display: block;
+  }
+  .recipe-thumb-wrap .remove-img {
+    position: absolute; top: -5px; right: -5px;
+    width: 18px; height: 18px;
+    background: var(--charcoal);
+    color: #fff;
+    border-radius: 50%;
+    border: none;
+    font-size: 10px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-top: 4px;
+  }
+  .submit-btn:active { background: var(--accent-hover); }
+  .submit-btn:disabled { background: var(--border-strong); cursor: not-allowed; }
+
+  /* ===== DETAIL SHEET ===== */
+  #detail-finish-img {
+    width: 100%;
+    aspect-ratio: 16/10;
+    object-fit: cover;
+    display: block;
+    background: var(--cream);
+  }
+
+  #detail-finish-empty {
+    width: 100%;
+    aspect-ratio: 16/10;
+    background: var(--cream);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 40px;
+    color: var(--border-strong);
+  }
+
+  .detail-info {
+    padding: 16px;
+  }
+
+  .detail-name {
+    font-family: 'Noto Serif JP', serif;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--charcoal);
+    margin-bottom: 8px;
+    line-height: 1.4;
+  }
+
+  .detail-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .detail-date {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .recipe-section-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 10px;
+  }
+
+  #detail-recipe-scroll {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 4px;
+    margin-bottom: 20px;
+  }
+  #detail-recipe-scroll::-webkit-scrollbar { display: none; }
+
+  #detail-recipe-scroll img {
+    flex-shrink: 0;
+    height: 160px;
+    width: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+  }
+
+  .recipe-none {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 12px 0;
+  }
+
+  .delete-btn {
+    width: 100%;
+    padding: 13px;
+    background: transparent;
+    color: var(--error);
+    border: 1.5px solid #E8C4B4;
+    border-radius: 12px;
+    font-size: 15px;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 8px;
+  }
+  .delete-btn:active { background: var(--accent-light); }
+
+  /* ===== LIGHTBOX ===== */
+  #lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 400;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+  }
+  #lightbox.open { display: flex; }
+  #lightbox img {
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 8px;
+    object-fit: contain;
+  }
+  #lightbox-close {
+    position: absolute;
+    top: 16px; right: 16px;
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ===== CONFIRM DIALOG ===== */
+  #confirm-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 500;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  #confirm-overlay.open { display: flex; }
+
+  .confirm-box {
+    background: var(--warm-white);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 300px;
+    text-align: center;
+  }
+  .confirm-box h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--charcoal);
+    margin-bottom: 8px;
+  }
+  .confirm-box p { font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btns button {
+    flex: 1; padding: 12px; border-radius: 10px;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 14px; cursor: pointer; border: none;
+  }
+  .btn-cancel { background: var(--border); color: var(--muted); }
+  .btn-delete { background: var(--error); color: #fff; }
+
+  /* ===== GOOGLE DRIVE AUTH ===== */
+  #drive-panel {
+    padding: 16px;
+    background: var(--warm-white);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drive-connect-btn {
+    width: 100%;
+    padding: 11px;
+    background: #fff;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-size: 14px;
+    font-family: 'Noto Sans JP', sans-serif;
+    cursor: pointer;
+    color: var(--charcoal);
+    transition: border-color 0.15s;
+  }
+  .drive-connect-btn:hover { border-color: var(--accent); }
+
+  .drive-icon {
+    width: 20px; height: 20px;
+  }
+
+  /* ===== TOAST ===== */
+  #toast {
+    position: fixed;
+    bottom: 96px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--charcoal);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    opacity: 0;
+    transition: all 0.25s;
+    z-index: 600;
+    white-space: nowrap;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Category color map */
+  .cat-和食 { background: #E8F0E4; color: #4A6B3C; }
+  .cat-洋食 { background: #E4EAF5; color: #3C4F7A; }
+  .cat-中華 { background: #F5E8E4; color: #7A3C3C; }
+  .cat-イタリアン { background: #EAE4F5; color: #5C3C7A; }
+  .cat-おやつ { background: #F5F0E4; color: #7A6A3C; }
+  .cat-ひとり { background: #E4F5F0; color: #3C6A5C; }
+  .cat-その他 { background: #F0F0F0; color: #5C5C5C; }
+</style>
+</head>
+<body>
+
+<!-- Status Bar -->
+<div id="status-bar">
+  <span class="app-title">🍳 料理ログ</span>
+  <div id="sync-status">
+    <div class="sync-dot" id="sync-dot"></div>
+    <span id="sync-label">未接続</span>
+  </div>
+</div>
+
+<!-- Main -->
+<main>
+  <!-- Drive Panel -->
+  <div id="drive-panel">
+    <button class="drive-connect-btn" onclick="connectDrive()">
+      <svg class="drive-icon" viewBox="0 0 87.3 78" xmlns="http://www.w3.org/2000/svg">
+        <path d="m6.6 66.85 3.85 6.65c.8 1.4 1.95 2.5 3.3 3.3l13.75-23.8h-27.5c0 1.55.4 3.1 1.2 4.5z" fill="#0066da"/>
+        <path d="m43.65 25-13.75-23.8c-1.35.8-2.5 1.9-3.3 3.3l-25.4 44a9.06 9.06 0 0 0 -1.2 4.5h27.5z" fill="#00ac47"/>
+        <path d="m73.55 76.8c1.35-.8 2.5-1.9 3.3-3.3l1.6-2.75 7.65-13.25c.8-1.4 1.2-2.95 1.2-4.5h-27.502l5.852 11.5z" fill="#ea4335"/>
+        <path d="m43.65 25 13.75-23.8c-1.35-.8-2.9-1.2-4.5-1.2h-18.5c-1.6 0-3.15.45-4.5 1.2z" fill="#00832d"/>
+        <path d="m59.8 53h-32.3l-13.75 23.8c1.35.8 2.9 1.2 4.5 1.2h50.8c1.6 0 3.15-.45 4.5-1.2z" fill="#2684fc"/>
+        <path d="m73.4 26.5-12.7-22c-.8-1.4-1.95-2.5-3.3-3.3l-13.75 23.8 16.15 27h27.45c0-1.55-.4-3.1-1.2-4.5z" fill="#ffba00"/>
+      </svg>
+      Google Drive に接続して同期する
+    </button>
+  </div>
+
+  <!-- Category Filter -->
+  <div id="filter-area"></div>
+
+  <!-- Card Grid -->
+  <div id="card-grid"></div>
+
+  <!-- Empty State -->
+  <div id="empty-state">
+    <div class="emoji">🍽️</div>
+    <p>まだ料理が登録されていません<br>最初の一皿を記録してみましょう！</p>
+  </div>
+</main>
+
+<!-- Add Button -->
+<button id="add-btn" onclick="openRegister()">
+  <span>＋</span> 料理を記録する
+</button>
+
+<!-- Register Sheet -->
+<div class="modal-overlay" id="register-overlay" onclick="if(event.target===this)closeRegister()">
+  <div class="modal-sheet" id="register-sheet">
+    <div class="sheet-header">
+      <span class="sheet-title">料理を記録する</span>
+      <button class="close-btn" onclick="closeRegister()">✕</button>
+    </div>
+    <div class="form-body">
+      <div class="form-group">
+        <label>料理名 *</label>
+        <input type="text" id="input-name" placeholder="例：肉じゃが、カルボナーラ…" maxlength="40">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select id="input-category">
+          <option value="">選択してください</option>
+          <option value="和食">🍱 和食</option>
+          <option value="洋食">🥩 洋食</option>
+          <option value="中華">🥟 中華</option>
+          <option value="イタリアン">🍝 イタリアン</option>
+          <option value="おやつ">🍰 おやつ</option>
+          <option value="ひとり">🥢 ひとり</option>
+          <option value="その他">🍴 その他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>完成写真</label>
+        <div class="img-upload-area">
+          <input type="file" accept="image/*" id="finish-file" onchange="handleFinishImg(this)">
+          <div class="img-upload-icon">📷</div>
+          <div class="img-upload-text">完成写真をアップロード</div>
+          <div class="img-upload-hint">JPEG / PNG</div>
+        </div>
+        <div id="finish-preview"></div>
+      </div>
+      <div class="form-group">
+        <label>レシピ画像（複数可）</label>
+        <div class="img-upload-area">
+          <input type="file" accept="image/*" multiple id="recipe-files" onchange="handleRecipeImgs(this)">
+          <div class="img-upload-icon">📋</div>
+          <div class="img-upload-text">レシピのスクショを追加</div>
+          <div class="img-upload-hint">Instagramなど複数枚OK</div>
+        </div>
+        <div id="recipe-preview-list"></div>
+      </div>
+      <button class="submit-btn" id="submit-btn" onclick="submitDish()">この料理を保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Sheet -->
+<div class="modal-overlay" id="detail-overlay" onclick="if(event.target===this)closeDetail()">
+  <div class="modal-sheet" id="detail-sheet">
+    <div class="sheet-header">
+      <span class="sheet-title">詳細</span>
+      <button class="close-btn" onclick="closeDetail()">✕</button>
+    </div>
+    <img id="detail-finish-img" src="" alt="" style="display:none;">
+    <div id="detail-finish-empty" style="display:none;">🍽️</div>
+    <div class="detail-info">
+      <h2 class="detail-name" id="detail-name"></h2>
+      <div class="detail-meta-row">
+        <span class="cat-badge" id="detail-cat"></span>
+        <span class="detail-date" id="detail-date"></span>
+      </div>
+      <div class="recipe-section-title">📋 レシピ画像</div>
+      <div id="detail-recipe-scroll"></div>
+      <button class="delete-btn" onclick="confirmDelete()">🗑️ この記録を削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div id="lightbox" onclick="closeLightbox()">
+  <button id="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightbox-img" src="" alt="">
+</div>
+
+<!-- Confirm Dialog -->
+<div id="confirm-overlay">
+  <div class="confirm-box">
+    <h3>記録を削除しますか？</h3>
+    <p>この操作は元に戻せません。</p>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="closeConfirm()">キャンセル</button>
+      <button class="btn-delete" onclick="doDelete()">削除する</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+const CATEGORIES = ['すべて', '和食', '洋食', '中華', 'イタリアン', 'おやつ', 'ひとり', 'その他'];
+const FILE_NAME = 'ryori_log.json';
+const MAX_W = 900;
+const JPEG_Q = 0.73;
+
+let dishes = [];
+let currentFilter = 'すべて';
+let currentDishId = null;
+let finishImgData = null;
+let recipeImgDataList = [];
+let driveFileId = null;
+let accessToken = null;
+
+// ===== INIT =====
+window.addEventListener('load', () => {
+  loadLocalData();
+  render();
+  checkDriveToken();
+});
+
+function loadLocalData() {
+  try {
+    const s = localStorage.getItem('ryori_dishes');
+    if (s) dishes = JSON.parse(s);
+  } catch(e) { dishes = []; }
+}
+
+function saveLocalData() {
+  localStorage.setItem('ryori_dishes', JSON.stringify(dishes));
+}
+
+// ===== DRIVE AUTH =====
+function checkDriveToken() {
+  const saved = localStorage.getItem('drive_token');
+  const exp = localStorage.getItem('drive_token_exp');
+  if (saved && exp && Date.now() < parseInt(exp)) {
+    accessToken = saved;
+    setSyncStatus('synced', '同期済み');
+    document.getElementById('drive-panel').style.display = 'none';
+    loadFromDrive();
+  }
+}
+
+function connectDrive() {
+  const CLIENT_ID = ''; // ユーザーが設定するGoogle OAuth Client ID
+  if (!CLIENT_ID) {
+    showToast('⚠️ Google Drive連携にはOAuth Client IDの設定が必要です');
+    showDriveSetupInfo();
+    return;
+  }
+  const redirect = location.origin + location.pathname;
+  const scope = 'https://www.googleapis.com/auth/drive.file';
+  const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirect)}&response_type=token&scope=${encodeURIComponent(scope)}`;
+  window.location.href = url;
+}
+
+function showDriveSetupInfo() {
+  // ローカルモードで継続
+  showToast('📱 ローカルモードで動作中（データはこのデバイスに保存）');
+}
+
+function setSyncStatus(state, label) {
+  const dot = document.getElementById('sync-dot');
+  dot.className = 'sync-dot ' + state;
+  document.getElementById('sync-label').textContent = label;
+}
+
+// ===== DRIVE OPERATIONS =====
+async function loadFromDrive() {
+  if (!accessToken) return;
+  setSyncStatus('connecting', '接続中...');
+  try {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=name='${FILE_NAME}'&spaces=drive&fields=files(id,name)`, {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+    const data = await res.json();
+    if (data.files && data.files.length > 0) {
+      driveFileId = data.files[0].id;
+      const content = await fetch(`https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      const json = await content.json();
+      if (Array.isArray(json)) {
+        dishes = json;
+        saveLocalData();
+        render();
+      }
+    }
+    setSyncStatus('synced', '同期済み');
+  } catch(e) {
+    setSyncStatus('error', 'エラー');
+  }
+}
+
+async function saveToDrive() {
+  if (!accessToken) return;
+  setSyncStatus('connecting', '同期中...');
+  try {
+    const content = JSON.stringify(dishes);
+    const blob = new Blob([content], { type: 'application/json' });
+    let url, method;
+    if (driveFileId) {
+      url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`;
+      method = 'PATCH';
+    } else {
+      const meta = await fetch('https://www.googleapis.com/drive/v3/files', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: FILE_NAME })
+      });
+      const mj = await meta.json();
+      driveFileId = mj.id;
+      url = `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`;
+      method = 'PATCH';
+    }
+    await fetch(url, {
+      method,
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: blob
+    });
+    setSyncStatus('synced', '同期済み');
+  } catch(e) {
+    setSyncStatus('error', 'エラー');
+  }
+}
+
+// ===== IMAGE PROCESSING =====
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width, h = img.height;
+        if (w > MAX_W) { h = Math.round(h * MAX_W / w); w = MAX_W; }
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', JPEG_Q));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleFinishImg(input) {
+  if (!input.files[0]) return;
+  finishImgData = await compressImage(input.files[0]);
+  const prev = document.getElementById('finish-preview');
+  prev.style.display = 'block';
+  prev.innerHTML = `<img src="${finishImgData}" alt="完成写真">`;
+}
+
+async function handleRecipeImgs(input) {
+  for (const file of input.files) {
+    const data = await compressImage(file);
+    recipeImgDataList.push(data);
+  }
+  renderRecipePreviews();
+}
+
+function renderRecipePreviews() {
+  const list = document.getElementById('recipe-preview-list');
+  list.innerHTML = recipeImgDataList.map((d, i) => `
+    <div class="recipe-thumb-wrap">
+      <img src="${d}" alt="レシピ${i+1}">
+      <button class="remove-img" onclick="removeRecipeImg(${i})">✕</button>
+    </div>
+  `).join('');
+}
+
+function removeRecipeImg(idx) {
+  recipeImgDataList.splice(idx, 1);
+  renderRecipePreviews();
+}
+
+// ===== CRUD =====
+async function submitDish() {
+  const name = document.getElementById('input-name').value.trim();
+  if (!name) { showToast('⚠️ 料理名を入力してください'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  const dish = {
+    id: Date.now().toString(),
+    name,
+    category: document.getElementById('input-category').value,
+    finishImg: finishImgData,
+    recipeImgs: [...recipeImgDataList],
+    createdAt: new Date().toISOString()
+  };
+
+  dishes.unshift(dish);
+  saveLocalData();
+  await saveToDrive();
+  render();
+  closeRegister();
+  showToast('✅ 料理を記録しました！');
+
+  btn.disabled = false;
+  btn.textContent = 'この料理を保存する';
+}
+
+function confirmDelete() {
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+}
+async function doDelete() {
+  dishes = dishes.filter(d => d.id !== currentDishId);
+  saveLocalData();
+  await saveToDrive();
+  render();
+  closeConfirm();
+  closeDetail();
+  showToast('🗑️ 記録を削除しました');
+}
+
+// ===== RENDER =====
+function render() {
+  renderFilter();
+  renderCards();
+}
+
+function renderFilter() {
+  const counts = {};
+  dishes.forEach(d => {
+    const c = d.category || 'その他';
+    counts[c] = (counts[c] || 0) + 1;
+  });
+  const area = document.getElementById('filter-area');
+  area.innerHTML = CATEGORIES.map(c => {
+    const cnt = c === 'すべて' ? dishes.length : (counts[c] || 0);
+    return `<button class="cat-tag ${currentFilter===c?'active':''}" onclick="setFilter('${c}')">
+      ${c} <span class="count">${cnt}</span>
+    </button>`;
+  }).join('');
+}
+
+function setFilter(cat) {
+  currentFilter = cat;
+  render();
+}
+
+function renderCards() {
+  const filtered = currentFilter === 'すべて' ? dishes : dishes.filter(d => d.category === currentFilter);
+  const grid = document.getElementById('card-grid');
+  const empty = document.getElementById('empty-state');
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  grid.innerHTML = filtered.map(d => {
+    const cat = d.category || '';
+    const thumb = d.finishImg
+      ? `<img class="card-thumb" src="${d.finishImg}" alt="${d.name}" loading="lazy">`
+      : `<div class="card-thumb-empty">🍽️</div>`;
+    const badge = cat ? `<span class="cat-badge cat-${cat}">${cat}</span>` : '';
+    const recipeCount = d.recipeImgs && d.recipeImgs.length > 0
+      ? `📋 ${d.recipeImgs.length}枚` : '';
+    return `<div class="dish-card" onclick="openDetail('${d.id}')">
+      ${thumb}
+      <div class="card-body">
+        <div class="card-name">${escHtml(d.name)}</div>
+        <div class="card-meta">${badge}<span class="recipe-count">${recipeCount}</span></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ===== MODALS =====
+function openRegister() {
+  finishImgData = null;
+  recipeImgDataList = [];
+  document.getElementById('input-name').value = '';
+  document.getElementById('input-category').value = '';
+  document.getElementById('finish-preview').style.display = 'none';
+  document.getElementById('finish-preview').innerHTML = '';
+  document.getElementById('recipe-preview-list').innerHTML = '';
+  document.getElementById('finish-file').value = '';
+  document.getElementById('recipe-files').value = '';
+  document.getElementById('register-overlay').classList.add('open');
+}
+function closeRegister() {
+  document.getElementById('register-overlay').classList.remove('open');
+}
+
+function openDetail(id) {
+  const d = dishes.find(x => x.id === id);
+  if (!d) return;
+  currentDishId = id;
+
+  const imgEl = document.getElementById('detail-finish-img');
+  const emptyEl = document.getElementById('detail-finish-empty');
+  if (d.finishImg) {
+    imgEl.src = d.finishImg;
+    imgEl.style.display = 'block';
+    emptyEl.style.display = 'none';
+  } else {
+    imgEl.style.display = 'none';
+    emptyEl.style.display = 'flex';
+  }
+
+  document.getElementById('detail-name').textContent = d.name;
+  const catEl = document.getElementById('detail-cat');
+  catEl.textContent = d.category || '';
+  catEl.className = 'cat-badge cat-' + (d.category || 'その他');
+
+  const date = new Date(d.createdAt);
+  document.getElementById('detail-date').textContent = `${date.getFullYear()}年${date.getMonth()+1}月${date.getDate()}日`;
+
+  const scroll = document.getElementById('detail-recipe-scroll');
+  if (d.recipeImgs && d.recipeImgs.length > 0) {
+    scroll.innerHTML = d.recipeImgs.map((img, i) =>
+      `<img src="${img}" alt="レシピ${i+1}" onclick="openLightbox('${img.replace(/'/g, "\\'")}')"`  +
+      ` loading="lazy">`
+    ).join('');
+  } else {
+    scroll.innerHTML = '<p class="recipe-none">レシピ画像はありません</p>';
+  }
+
+  document.getElementById('detail-overlay').classList.add('open');
+}
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+// ===== UTILS =====
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Handle OAuth redirect
+const hash = new URLSearchParams(location.hash.slice(1));
+if (hash.get('access_token')) {
+  accessToken = hash.get('access_token');
+  const exp = Date.now() + parseInt(hash.get('expires_in') || 3600) * 1000;
+  localStorage.setItem('drive_token', accessToken);
+  localStorage.setItem('drive_token_exp', exp.toString());
+  history.replaceState(null, '', location.pathname);
+  document.getElementById('drive-panel').style.display = 'none';
+  setSyncStatus('synced', '同期済み');
+  loadFromDrive();
+}
+</script>
+</body>
+</html>
