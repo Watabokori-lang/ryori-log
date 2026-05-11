@@ -814,6 +814,7 @@ const CATEGORIES = ['すべて', '和食', '洋食', '中華', 'イタリアン'
 const FILE_NAME = 'ryori_log.json';
 const MAX_W = 900;
 const JPEG_Q = 0.73;
+const CLIENT_ID = ''; // ← ここにGoogle OAuth Client IDを入れる
 
 let dishes = [];
 let currentFilter = 'すべて';
@@ -855,7 +856,6 @@ function checkDriveToken() {
 }
 
 function connectDrive() {
-  const CLIENT_ID = '254348837044-v02p7llcpp5ur08odo5bl307866tunuc.apps.googleusercontent.com'; // ユーザーが設定するGoogle OAuth Client ID
   if (!CLIENT_ID) {
     showToast('⚠️ Google Drive連携にはOAuth Client IDの設定が必要です');
     showDriveSetupInfo();
